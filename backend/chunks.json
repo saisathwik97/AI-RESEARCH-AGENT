@@ -1,0 +1,114 @@
+[
+  {
+    "source": "document.txt",
+    "text": "AI Research Agent — Technical Documentation"
+  },
+  {
+    "source": "document.txt",
+    "text": "1. Overview\nThe AI Research Agent is an intelligent software system designed to answer questions, perform research, use external tools, maintain conversation context, and retrieve information from private documents.\nThe project is designed to demonstrate the fundamental mechanisms behind modern AI agents before introducing advanced frameworks."
+  },
+  {
+    "source": "document.txt",
+    "text": "2. System Architecture\nThe basic architecture consists of a React frontend, a FastAPI backend, an AI agent powered by an LLM, external tools, retrieval-augmented generation, and persistent memory.\nThe frontend sends a user's question to the FastAPI backend. The agent interprets the request and can use tools, retrieve information from documents, access conversation memory, and synthesize a final response.\nA simplified architecture is:\nUser → React UI → FastAPI → AI Agent → Tools / RAG / Memory"
+  },
+  {
+    "source": "document.txt",
+    "text": "3. Large Language Model\nThe Large Language Model acts as the reasoning and language generation component of the agent.\nThe model can understand natural-language questions, decide when a capability is needed, request tool calls, interpret tool results, and generate a final response."
+  },
+  {
+    "source": "document.txt",
+    "text": "4. Tool Calling\nTool calling allows the AI model to request external functions when it needs capabilities that are not directly available through text generation.\nExamples of tools include:\n•\tCalculator\n•\tTime\n•\tWeb Search\nThe AI model can decide when a capability is needed."
+  },
+  {
+    "source": "document.txt",
+    "text": "5. Calculator Tool\nThe calculator tool performs basic arithmetic operations such as addition, subtraction, multiplication, and division.\nUsing a dedicated calculator prevents the agent from relying on the language model to perform arithmetic itself."
+  },
+  {
+    "source": "document.txt",
+    "text": "6. Time Tool\nThe time tool provides the current date and time.\nThis allows the agent to obtain dynamic time information instead of relying on information contained in the model's training data."
+  },
+  {
+    "source": "document.txt",
+    "text": "7. Web Search Tool\nThe web search tool allows the agent to search the internet for external or current information.\nThe agent can use web search when a question requires information that may have changed or is not contained in its internal knowledge."
+  },
+  {
+    "source": "document.txt",
+    "text": "8. Agent Loop\nThe agent loop allows the model to repeatedly interact with tools until it has enough information to answer the user's request.\nA simplified loop is:\nUser Question → LLM → Tool Call → Tool Result → LLM → Final Answer\nThis is different from a single LLM request because the agent can perform multiple actions before producing the final response."
+  },
+  {
+    "source": "document.txt",
+    "text": "9. Planning\nA planning component can break a complex user request into smaller research tasks.\nFor example, a request to compare multiple technologies can be divided into separate tasks for researching each technology followed by a synthesis step.\nThe Planning Agent creates a set of research tasks and the agent executes those tasks before producing the final answer."
+  },
+  {
+    "source": "document.txt",
+    "text": "10. Conversation Memory\nConversation memory allows the agent to maintain context across multiple questions.\nFor example, if a user asks about Python and then asks about its benefits, the agent can use the previous conversation to understand that \"its\" refers to Python.\nThe current implementation stores recent conversation messages."
+  },
+  {
+    "source": "document.txt",
+    "text": "11. Persistent Memory\nPersistent memory allows conversation information to survive application restarts.\nThe project currently uses a JSON file as a simple learning implementation for persistent conversation storage.\nA production implementation can replace this file-based storage with PostgreSQL or another database."
+  },
+  {
+    "source": "document.txt",
+    "text": "12. Retrieval-Augmented Generation\nRetrieval-Augmented Generation (RAG) is a technique where an AI system retrieves relevant information from external documents before generating an answer.\nRAG allows the model to use information from private or specialized documents instead of relying only on information encoded in the model.\nA basic RAG pipeline consists of:\nDocument → Chunking → Embeddings → Vector Store → Retrieval → LLM"
+  },
+  {
+    "source": "document.txt",
+    "text": "13. Why RAG Is Important\nLanguage models may not have access to private company documents, project documentation, internal knowledge bases, or newly created information.\nRAG provides a mechanism for supplying relevant external information to the model at query time.\nThis can improve factual grounding and allow the system to answer questions using a controlled knowledge source."
+  },
+  {
+    "source": "document.txt",
+    "text": "14. Document Processing\nBefore documents can be searched semantically, they are divided into smaller sections called chunks.\nChunks should be small enough for efficient retrieval while containing enough context to represent a meaningful piece of information.\nThe current learning implementation initially uses paragraphs as document units."
+  },
+  {
+    "source": "document.txt",
+    "text": "15. Embeddings\nAn embedding converts text into a numerical vector that represents semantic information.\nFor example, two sentences with similar meanings can have vectors that are close to each other even when they use different words.\nThe project uses a Sentence Transformer model to generate embeddings.\nThe current test model is:\nall-MiniLM-L6-v2\nThis model produces 384-dimensional embeddings."
+  },
+  {
+    "source": "document.txt",
+    "text": "16. Semantic Retrieval\nSemantic retrieval compares the embedding of a user's query with embeddings of document chunks.\nCosine similarity can be used to measure how similar two vectors are.\nThe retrieval process is:\nUser Query → Query Embedding → Similarity Calculation → Top Relevant Chunks\nThis is more powerful than simple keyword matching because semantic similarity can identify related concepts even when the exact words are different."
+  },
+  {
+    "source": "document.txt",
+    "text": "17. Vector Database\nA vector database stores document embeddings and allows efficient similarity search.\nFor a small learning project, embeddings can temporarily be kept in memory.\nFor a production system, a vector database or PostgreSQL with pgvector can be used."
+  },
+  {
+    "source": "document.txt",
+    "text": "18. RAG and Memory\nRAG and conversation memory solve different problems.\nMemory stores information about previous interactions with the user.\nRAG retrieves information from external documents.\nMemory answers questions such as:\n\"What were we discussing earlier?\"\nRAG answers questions such as:\n\"What does this project documentation say about RAG?\"\nA complete agent can use both mechanisms together."
+  },
+  {
+    "source": "document.txt",
+    "text": "19. MCP\nThe Model Context Protocol (MCP) is a standardized way for AI applications to discover and use external capabilities.\nThe MCP layer provides a standardized connection between AI applications and external capabilities.\nThe host is the AI application.\nExamples of possible MCP capabilities include:\n•\tSearch\n•\tCalendar operations\n•\tCompany APIs\n•\tDatabase operations"
+  },
+  {
+    "source": "document.txt",
+    "text": "20. Function Calling vs MCP\nFunction calling is about the model requesting an action.\nMCP is about standardizing the connection between AI applications and external capabilities.\nFunction calling can be implemented directly inside an application.\nMCP provides a more standardized architecture for exposing tools and resources to AI applications."
+  },
+  {
+    "source": "document.txt",
+    "text": "21. Database\nA database provides structured persistent storage.\nPostgreSQL is a relational database system that can store information using tables and relationships.\nA database can store:\n•\tUsers\n•\tConversations\n•\tMessages\n•\tDocuments\n•\tMetadata\n•\tApplication state\nPostgreSQL can also serve as a foundation for vector-based RAG when combined with pgvector."
+  },
+  {
+    "source": "document.txt",
+    "text": "22. Production Architecture\nA production version of the AI Research Agent can contain:\n•\tReact frontend\n•\tFastAPI backend\n•\tAgent orchestration\n•\tLLM provider\n•\tTool layer\n•\tMCP servers\n•\tPostgreSQL\n•\tVector search\n•\tAuthentication\n•\tLogging\n•\tMonitoring\n•\tEvaluation\nThe database stores persistent application data."
+  },
+  {
+    "source": "document.txt",
+    "text": "23. Security\nAI agents should follow the principle of least privilege.\nTools should have limited permissions.\nExternal APIs should use secure authentication mechanisms.\nAPI keys and secrets should be stored in environment variables rather than source code.\nUser data should be protected through appropriate authentication, authorization, and access controls."
+  },
+  {
+    "source": "document.txt",
+    "text": "24. Multi-Agent Architecture\nA more advanced architecture can divide responsibilities among specialized agents.\nExample:\nResearch Agent\nPlanning Agent\nRetrieval Agent\nTool Agent\nSynthesis Agent\nHowever, a multi-agent architecture should only be introduced when it provides a real advantage. A well-designed single agent is often simpler and easier to debug."
+  },
+  {
+    "source": "document.txt",
+    "text": "25. Evaluation\nAI agents should be evaluated systematically.\nImportant evaluation areas include:\n•\tAnswer correctness\n•\tTool selection\n•\tRetrieval quality\n•\tGrounding\n•\tLatency\n•\tCost\n•\tReliability\n•\tSafety\nEvaluation datasets can contain representative questions and expected outcomes."
+  },
+  {
+    "source": "document.txt",
+    "text": "26. Future Improvements\nFuture versions of the AI Research Agent can include semantic vector retrieval, PostgreSQL persistence, MCP-based tools, authentication, multi-agent workflows, streaming responses, better document processing, evaluation pipelines, caching, and production deployment."
+  },
+  {
+    "source": "document.txt",
+    "text": "27. Project Goal\nThe goal of the project is to understand the fundamental mechanisms behind AI agents before introducing advanced frameworks.\nThe project progressively demonstrates:\nLLM → Tool Calling → Agent Loop → Planning → Memory → RAG → MCP → Database → Production"
+  }
+]
