@@ -1,120 +1,81 @@
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from ingest import ingest_documents
+
 import numpy as np
 import os
 import json
+import hashlib
+import string
+
+
+# --------------------------------------------------
+# EMBEDDING MODEL
+# --------------------------------------------------
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
-def create_chunks(documents):
+# --------------------------------------------------
+# LOAD DOCUMENTS AND CREATE CHUNKS
+# --------------------------------------------------
 
-    chunks = []
-
-    for document in documents:
-
-        source = document["source"]
-        text = document["text"]
-
-        lines = text.splitlines()
-
-        current_chunk = []
-
-        for line in lines:
-
-            if line.strip() and line[0].isdigit() and ". " in line:
-
-                if current_chunk:
-
-                    chunks.append({
-                        "source": source,
-                        "text": "\n".join(current_chunk)
-                    })
-
-                current_chunk = [line]
-
-            else:
-
-                if line.strip():
-                    current_chunk.append(line)
-
-        if current_chunk:
-
-            chunks.append({
-                "source": source,
-                "text": "\n".join(current_chunk)
-            })
-
-    return chunks
+chunks = ingest_documents()
 
 
-def load_documents():
-    documents = []
+# --------------------------------------------------
+# CREATE HASH OF DOCUMENT CHUNKS
+# --------------------------------------------------
 
-    documents_folder = "documents"
+def get_chunks_hash(chunks):
 
-    for filename in os.listdir(documents_folder):
+    text = json.dumps(
+        chunks,
+        sort_keys=True,
+        ensure_ascii=False
+    )
 
-        if filename.endswith(".txt"):
-
-            path = os.path.join(
-                documents_folder,
-                filename
-            )
-
-            with open(
-                path,
-                "r",
-                encoding="utf-8"
-            ) as f:
-                documents.append({
-                    "source": filename,
-                    "text": f.read()
-                })
-
-    return documents
-
-def load_chunks():
-    document = load_documents()
-
-    chunks = create_chunks(document)
-
-    with open("chunks.json", "w", encoding="utf-8") as f:
-        json.dump(
-            chunks,
-            f,
-            indent=2,
-            ensure_ascii=False
-        )
-
-    print("Chunks saved!")
-
-    return chunks
+    return hashlib.md5(
+        text.encode("utf-8")
+    ).hexdigest()
 
 
-chunks = load_chunks()
+# --------------------------------------------------
+# STOP WORDS
+# --------------------------------------------------
 
-
-if os.path.exists("embeddings.npy"):
-
-    embeddings = np.load("embeddings.npy")
-
-    print("Embeddings loaded from file!")
-
-else:
-
-    texts = [chunk["text"] for chunk in chunks]
-    embeddings = model.encode(texts)
-
-    np.save("embeddings.npy", embeddings)
-
-    print("Embeddings created and saved!")
 STOP_WORDS = {
-    "what", "is", "the", "a", "an",
-    "of", "to", "in", "for", "and"
+    "what",
+    "is",
+    "the",
+    "a",
+    "an",
+    "of",
+    "to",
+    "in",
+    "for",
+    "and"
 }
+
+
+# --------------------------------------------------
+# CLEAN QUERY
+# --------------------------------------------------
+
 def clean_query(query):
-    words = query.lower().split()
+
+    query = query.lower()
+
+    # Replace punctuation with spaces
+    # instead of deleting punctuation.
+    query = query.translate(
+        str.maketrans(
+            string.punctuation,
+            " " * len(string.punctuation)
+        )
+    )
+
+    words = query.split()
 
     filtered_words = [
         word
@@ -123,45 +84,200 @@ def clean_query(query):
     ]
 
     return " ".join(filtered_words)
-def retrieve(query, top_k=3):
+
+
+# --------------------------------------------------
+# AUTOMATIC EMBEDDING MANAGEMENT
+# --------------------------------------------------
+
+chunks_hash = get_chunks_hash(chunks)
+
+hash_file = "embeddings.hash"
+
+
+if (
+    os.path.exists("embeddings.npy")
+    and os.path.exists(hash_file)
+):
+
+    # Load previously saved hash
+    with open(
+        hash_file,
+        "r"
+    ) as f:
+
+        saved_hash = f.read()
+
+
+    # Documents have not changed
+    if saved_hash == chunks_hash:
+
+        embeddings = np.load(
+            "embeddings.npy"
+        )
+
+        print(
+            "Embeddings loaded from file!"
+        )
+
+
+    # Documents have changed
+    else:
+
+        print(
+            "Documents changed. "
+            "Rebuilding embeddings..."
+        )
+
+        texts = [
+            chunk["text"]
+            for chunk in chunks
+        ]
+
+        embeddings = model.encode(
+            texts
+        )
+
+        np.save(
+            "embeddings.npy",
+            embeddings
+        )
+
+        with open(
+            hash_file,
+            "w"
+        ) as f:
+
+            f.write(chunks_hash)
+
+        print(
+            "Embeddings recreated and saved!"
+        )
+
+
+# --------------------------------------------------
+# FIRST TIME EMBEDDING CREATION
+# --------------------------------------------------
+
+else:
+
+    print(
+        "Creating embeddings "
+        "for the first time..."
+    )
+
+    texts = [
+        chunk["text"]
+        for chunk in chunks
+    ]
+
+    embeddings = model.encode(
+        texts
+    )
+
+    np.save(
+        "embeddings.npy",
+        embeddings
+    )
+
+    with open(
+        hash_file,
+        "w"
+    ) as f:
+
+        f.write(chunks_hash)
+
+    print(
+        "Embeddings created and saved!"
+    )
+
+
+# --------------------------------------------------
+# SEMANTIC RETRIEVAL
+# --------------------------------------------------
+
+def retrieve(
+    query,
+    top_k=3,
+    threshold=0.35
+):
 
     cleaned_query = clean_query(query)
 
+    # repr() helps us see hidden spaces/characters
     print(
         "🔎 Original query:",
-        query
+        repr(query)
     )
 
     print(
         "🧹 Cleaned query:",
-        cleaned_query
+        repr(cleaned_query)
     )
 
+    # Convert query into an embedding
     query_embedding = model.encode(
         [cleaned_query]
     )
 
+    # Calculate similarity with every document chunk
     similarities = cosine_similarity(
         query_embedding,
         embeddings
     )[0]
 
-    top_indices = similarities.argsort()[-top_k:][::-1]
+    # Get top K most similar chunks
+    top_indices = similarities.argsort()[
+        -top_k:
+    ][::-1]
 
     results = []
 
     for index in top_indices:
 
+        similarity = float(
+            similarities[index]
+        )
+
+        # Ignore chunks below threshold
+        if similarity < threshold:
+            continue
+
         results.append({
-            "similarity": float(
-                similarities[index]
-            ),
-
+            "similarity": similarity,
             "source": chunks[index]["source"],
-
             "text": chunks[index]["text"]
         })
 
     return results
 
 
+# --------------------------------------------------
+# TEST RETRIEVAL DIRECTLY
+# --------------------------------------------------
+
+if __name__ == "__main__":
+
+    results = retrieve(
+       "What is Retrieval-Augmented Generation?"
+    )
+
+    for result in results:
+
+        print(
+            "------------------------------------------------------------"
+        )
+
+        print(
+            "Source:",
+            result["source"]
+        )
+
+        print(
+            "Similarity:",
+            result["similarity"]
+        )
+
+        print(
+            result["text"]
+        )

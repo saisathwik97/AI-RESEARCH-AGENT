@@ -33,8 +33,16 @@ rag_tool = {
         "name": "retrieve_documents",
         "description": (
             "Search the project's internal documents using semantic similarity. "
-            "Use this tool when the question may be answered from the project's "
-            "stored documentation or internal knowledge."
+            "Use ONLY the research results provided in the user's message "
+            "to answer the original question. "
+
+            "Treat every retrieved document passage as authoritative source text. "
+            "Do not create descriptions for listed items unless those descriptions "
+            "are explicitly present in the research results. "
+
+            "When a source provides a list, reproduce the list using the "
+            "same terminology and do not add explanations that are not present "
+            "in the source. "
         ),
         "parameters": {
             "type": "object",
@@ -67,8 +75,14 @@ web_search_tool = {
     "function": {
         "name": "web_search",
         "description": (
-            "Search the internet using a natural-language query. "
-            "This is the only tool available for web research."
+            "Use retrieve_documents first when the question may be answered "
+            "from the project's internal documentation. "
+            "If retrieve_documents returns relevant information, use that "
+            "information and do not call web_search unless the user explicitly "
+            "needs current or external information. "
+            "Use web_search when current, external, or internet information "
+            "is required, or when the internal documents do not contain "
+            "sufficient information to answer the question. "
         ),
         "parameters": {
             "type": "object",
@@ -200,40 +214,59 @@ def ask_gemini(question: str):
                 {
             "role": "system",
             "content": (
-                "You are an AI research agent. "
-                "Complete the user's task using the available tools. "
+    "You are a research synthesis agent. "
 
-                "IMPORTANT TOOL RULES: "
+    "Use ONLY the research results provided in the user's message "
+    "to answer the original question. "
+     "IMPORTANT RAG GROUNDING RULE: "
+"When retrieve_documents returns relevant information, "
+"the retrieved text is the only factual source. "
 
-                "The ONLY available tools are "
-                "calculator, get_time, web_search, and retrieve_documents. "
+"Answer using only claims explicitly stated in the retrieved text. "
 
-                "NEVER call any other tool. "
+"Do NOT create new subcomponents, categories, stages, "
+"examples, explanations, interpretations, or conclusions "
+"unless they are explicitly stated in the retrieved text. "
 
-                "NEVER call open_browser, browser, open_url, "
-                "fetch, or any other tool. "
+"Do NOT rename or reinterpret concepts from the retrieved text. "
 
-                "For arithmetic calculations, always use the calculator tool "
-                "instead of calculating the result yourself. "
+"Do NOT combine separate retrieved statements into a new claim "
+"unless the relationship between them is explicitly stated. "
 
-                "Use retrieve_documents when the information may be available "
-                "in the project's internal documentation. "
+"If the retrieved text does not contain enough information "
+"to answer the task, say that the retrieved documents do not "
+"provide that information. "
+    "IMPORTANT GROUNDING RULE: "
+    "Do NOT use your pretrained knowledge to add facts, examples, "
+    "libraries, frameworks, tools, domains, URLs, or claims. "
 
-                "Use web_search when current, external, or internet information "
-                "is required. "
+    "Do NOT expand, enrich, or infer information beyond the "
+    "provided research results. "
 
-                "Prefer retrieve_documents over web_search for questions about "
-                "the project's concepts, architecture, implementation, RAG, "
-                "memory, tools, planning, or other topics covered by the "
-                "internal documentation. "
+    "If the research results contain only a short list, "
+    "preserve that list without adding additional details. "
 
-                "The web_search tool accepts exactly one argument named query. "
+    "If the research results do not contain enough information "
+    "to answer a requested detail, explicitly say that the "
+    "research results do not provide that detail. "
 
-                "query must be a natural-language search query. "
+    "You may use previous conversation ONLY to understand "
+    "the context of the user's question. "
+    "Do NOT use previous assistant answers as factual evidence. "
 
-                "NEVER pass cursor, id, URL, source, "
-                "source_id, or result_id to web_search."
-            )
+    "When information comes from retrieve_documents, "
+    "the retrieved document text is the authoritative source. "
+    "Use only claims explicitly supported by that text. "
+    "Do not combine it with outside knowledge. "
+
+    "Do not invent citations or sources. "
+
+    "Use Markdown formatting. "
+    "Prefer headings, short paragraphs, numbered steps, "
+    "and bullet points. "
+    "Avoid large tables unless genuinely necessary. "
+    "Keep the answer concise and easy to read."
+)
         },
 
             {
@@ -255,24 +288,18 @@ def ask_gemini(question: str):
         while True:
 
             response = client.chat.completions.create(
-
                 model="openai/gpt-oss-20b",
-
                 messages=messages,
-
                 tools=[
                     calculator_tool,
                     time_tool,
                     web_search_tool,
                     rag_tool
                 ],
-
                 tool_choice="auto"
             )
 
-
             message = response.choices[0].message
-
 
             messages.append(message)
 
@@ -400,18 +427,28 @@ def ask_gemini(question: str):
 
                     retrieved_results = tool(query)
 
-                    formatted_results = []
+                    if not retrieved_results:
 
-                    for result in retrieved_results:
+                        result = (
+                            "No sufficiently relevant information "
+                            "was found in the internal documents."
+                        )
 
-                        formatted_results.append(
-                           f"Source: {result['source']}\n"
-                           f"Similarity: {result['similarity']}\n"
-                           f"{result['text']}"
-                         )
+                    else:
 
-                    result = "\n\n".join(formatted_results)
+                        formatted_results = []
 
+                        for result_item in retrieved_results:
+
+                            formatted_results.append(
+                                f"[SOURCE: {result_item['source']}]\n"
+                                f"[SIMILARITY: {result_item['similarity']:.4f}]\n"
+                                f"{result_item['text']}"
+                            )
+
+                        result = "\n\n".join(
+                            formatted_results
+                        )
                 # -------------------------
                 # Other tools
                 # -------------------------
@@ -451,50 +488,54 @@ def ask_gemini(question: str):
 
 
     final_messages = [
+    {
+        "role": "system",
+        "content": (
+            "You are a strict research answer generator. "
 
-        {
-            "role": "system",
-            "content": (
-            "You are a research synthesis agent. "
-            "Use the research results provided to produce a clear and accurate final answer. "
-            "Do not invent information that is not supported by the research results. "
-            "Use Markdown formatting. "
-            "Prefer headings, short paragraphs, numbered steps, and bullet points. "
-            "Avoid large tables unless they are genuinely necessary. "
-            "Keep the answer concise and easy to read. "
-            "Explain technical concepts in a structured way. "
-            "You may use the previous conversation to understand the context of the user's current question."
-            )
-        }
+            "Your ONLY factual source is the text provided under "
+            "'Research results'. "
 
-    ]
+            "You MUST NOT use your pretrained knowledge. "
 
+            "You MUST NOT add any information that is not explicitly "
+            "present in the Research results. "
 
-    # Add previous conversation
+            "You MUST NOT add examples, libraries, frameworks, tools, "
+            "use cases, domains, explanations, or claims from outside "
+            "the Research results. "
 
-    final_messages.extend(
-        conversation_history
-    )
+            "Simply rewrite and organize the Research results into "
+            "a clear answer to the Original question. "
+             " When presenting information from the Research results, "
+            "preserve the source information provided with each result. "
+            "Do not invent sources or citations. "
+            "You may change wording and formatting, but you must "
+            "preserve the factual meaning of the Research results. "
 
+            "If the Research results do not contain enough information "
+            "to answer something, explicitly say that the research "
+            "results do not provide that information. "
 
-    # Add research results ONCE
+            "Use Markdown formatting."
+        )
+    }
+]
 
     final_messages.append(
-
         {
             "role": "user",
             "content": (
-
-                f"Original question:\n"
-                f"{question}\n\n"
-
+                f"Original question:\n{question}\n\n"
                 f"Research results:\n"
                 f"{chr(10).join(all_results)}"
-
             )
         }
-
     )
+
+    # Add research results ONCE
+
+    
 
 
     # -------------------------

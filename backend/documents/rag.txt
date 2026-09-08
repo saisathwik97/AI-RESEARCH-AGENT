@@ -1,0 +1,39 @@
+1. Retrieval-Augmented Generation
+
+Retrieval-Augmented Generation combines document retrieval with language generation. It allows a language model to use information retrieved from documents when generating an answer.
+
+2. RAG Process
+
+The RAG process has two main stages: retrieval and generation. During retrieval, relevant information is searched from a document collection. During generation, the retrieved information is provided to a language model to help generate the answer.
+
+3. RAG Components
+
+The main components of a RAG system are documents, document chunks, embeddings, a vector database, a retriever, and a language model.
+
+4. Document Processing
+
+Documents are loaded and divided into smaller chunks. Chunking makes it easier to retrieve specific pieces of information instead of processing an entire document at once.
+
+5. Embeddings
+
+Embeddings represent text as numerical vectors. Similar meanings produce vectors that are closer together in vector space. These vectors are used to perform semantic retrieval.
+
+6. Semantic Retrieval
+
+Semantic retrieval converts the user's query into an embedding and compares it with document embeddings. The system retrieves the chunks with the highest similarity to the query.
+
+7. Vector Database
+
+A vector database stores document embeddings and allows the system to efficiently search for semantically similar information.
+
+8. RAG and LLM
+
+The retrieved document chunks are provided to the language model as context. The language model uses this context to generate an answer based on the retrieved information.
+
+9. Benefits of RAG
+
+RAG allows an AI system to use information from external documents. It can help answer questions using a specific knowledge base instead of relying only on information stored in the language model.
+
+10. RAG and Memory
+
+RAG retrieves information from stored documents, while conversation memory stores previous interactions with the user. RAG provides external knowledge and memory provides conversational context.

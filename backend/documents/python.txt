@@ -1,0 +1,11 @@
+1. Python Programming
+
+Python is a high-level programming language known for it is simple syntax and readability.
+
+2. Python Applications
+
+Python is commonly used for web development, data analysis, machine learning, automation, and scripting.
+
+3. Python and AI
+
+Python is widely used in artificial intelligence because of libraries such as NumPy, pandas, PyTorch, and scikit-learn.
